@@ -1,0 +1,5 @@
+{
+  "name": "Controlled Substance Inventory",
+  "description": "An application to manage and track the inventory of controlled substances in a hospital pharmacy, including distribution to various hospital units.",
+  "requestFramePermissions": []
+}
