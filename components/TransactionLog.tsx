@@ -1,16 +1,30 @@
 import React from 'react';
-import { Drug, Transaction, TransactionType } from '../types';
+import { Drug, Transaction, TransactionType, HospitalUnit } from '../types';
 import { ArrowUpIcon, ArrowDownIcon, SearchIcon } from './Icons';
+import { MultiSelectDropdown } from './MultiSelectDropdown';
+import { HOSPITAL_UNITS } from '../constants';
 
 interface TransactionLogProps {
   transactions: Transaction[];
   allDrugs: Drug[];
   searchTerm: string;
   onSearchTermChange: (term: string) => void;
-  selectedDrugFilter: string;
-  onDrugFilterChange: (drugName: string) => void;
+
+  selectedDrugFilters: string[];
+  onDrugFilterChange: (selected: string[]) => void;
+  
+  dateRange: { start: string; end: string; };
+  onDateRangeChange: (field: 'start' | 'end', value: string) => void;
+  
+  transactionTypeFilter: 'all' | 'ADD' | 'DISTRIBUTE';
+  onTransactionTypeFilterChange: (type: 'all' | 'ADD' | 'DISTRIBUTE') => void;
+  
+  hospitalUnitFilter: 'all' | HospitalUnit;
+  onHospitalUnitFilterChange: (unit: 'all' | HospitalUnit) => void;
+
   totalTransactions: number;
 }
+
 
 const TransactionEntry: React.FC<{ transaction: Transaction }> = ({ transaction }) => {
     const isAdd = transaction.type === TransactionType.ADD;
@@ -55,8 +69,14 @@ export const TransactionLog: React.FC<TransactionLogProps> = ({
     allDrugs,
     searchTerm,
     onSearchTermChange,
-    selectedDrugFilter,
+    selectedDrugFilters,
     onDrugFilterChange,
+    dateRange,
+    onDateRangeChange,
+    transactionTypeFilter,
+    onTransactionTypeFilterChange,
+    hospitalUnitFilter,
+    onHospitalUnitFilterChange,
     totalTransactions
 }) => {
     const groupedTransactions = transactions.reduce((acc, t) => {
@@ -72,6 +92,11 @@ export const TransactionLog: React.FC<TransactionLogProps> = ({
         acc[dateKey].push(t);
         return acc;
     }, {} as Record<string, Transaction[]>);
+
+    const drugOptions = allDrugs.map(drug => ({
+        value: drug.genericName,
+        label: `${drug.brandName} (${drug.genericName})`
+    }));
 
     return (
         <div className="bg-white rounded-lg shadow-md p-6 h-full flex flex-col">
@@ -91,19 +116,65 @@ export const TransactionLog: React.FC<TransactionLogProps> = ({
                             aria-label="Search transactions"
                         />
                     </div>
+
                     <div>
-                        <label htmlFor="drug-filter" className="sr-only">Filter by Drug</label>
-                        <select
-                            id="drug-filter"
-                            value={selectedDrugFilter}
-                            onChange={(e) => onDrugFilterChange(e.target.value)}
-                            className="block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                        >
-                            <option value="all">Filter by All Drugs</option>
-                            {allDrugs.map(drug => (
-                                <option key={drug.id} value={drug.genericName}>{drug.brandName} ({drug.genericName})</option>
-                            ))}
-                        </select>
+                      <label htmlFor="drug-filter" className="block text-sm font-medium text-slate-700 mb-1">Filter by Drug(s)</label>
+                      <MultiSelectDropdown
+                        options={drugOptions}
+                        selected={selectedDrugFilters}
+                        onChange={onDrugFilterChange}
+                        placeholder="Filter by All Drugs"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="start-date" className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
+                            <input
+                                type="date"
+                                id="start-date"
+                                value={dateRange.start}
+                                onChange={(e) => onDateRangeChange('start', e.target.value)}
+                                className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="end-date" className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
+                            <input
+                                type="date"
+                                id="end-date"
+                                value={dateRange.end}
+                                onChange={(e) => onDateRangeChange('end', e.target.value)}
+                                min={dateRange.start}
+                                className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Transaction Type</label>
+                            <div className="flex rounded-md shadow-sm">
+                                <button onClick={() => onTransactionTypeFilterChange('all')} className={`px-3 py-2 text-sm rounded-l-md border w-full ${transactionTypeFilter === 'all' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}>All</button>
+                                <button onClick={() => onTransactionTypeFilterChange(TransactionType.ADD)} className={`px-3 py-2 text-sm border-t border-b w-full ${transactionTypeFilter === TransactionType.ADD ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}>Add</button>
+                                <button onClick={() => onTransactionTypeFilterChange(TransactionType.DISTRIBUTE)} className={`px-3 py-2 text-sm rounded-r-md border w-full ${transactionTypeFilter === TransactionType.DISTRIBUTE ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}>Distribute</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label htmlFor="unit-filter" className="block text-sm font-medium text-slate-700 mb-1">Hospital Unit</label>
+                            <select
+                                id="unit-filter"
+                                value={hospitalUnitFilter}
+                                onChange={(e) => onHospitalUnitFilterChange(e.target.value as 'all' | HospitalUnit)}
+                                disabled={transactionTypeFilter === TransactionType.ADD}
+                                className="block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md disabled:bg-slate-100 disabled:cursor-not-allowed"
+                            >
+                                <option value="all">All Units</option>
+                                {HOSPITAL_UNITS.map(unit => (
+                                    <option key={unit} value={unit}>{unit}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -115,7 +186,6 @@ export const TransactionLog: React.FC<TransactionLogProps> = ({
                 </div>
             ) : (
                 <div className="overflow-y-auto flex-grow -mr-6 pr-6">
-                    {/* FIX: Use Object.keys to iterate over grouped transactions to avoid type inference issues with Object.entries where the value type could be inferred as 'unknown'. */}
                     {Object.keys(groupedTransactions).map(date => {
                         const dailyTransactions = groupedTransactions[date];
                         return (

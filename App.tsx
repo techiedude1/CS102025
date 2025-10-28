@@ -47,9 +47,14 @@ function App() {
   const [selectedDrug, setSelectedDrug] = useState<Drug | null>(null);
   const [modalAction, setModalAction] = useState<ModalAction | null>(null);
 
+  // Transaction Log Filter States
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDrugFilter, setSelectedDrugFilter] = useState<string>('all');
+  const [selectedDrugFilters, setSelectedDrugFilters] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState<'all' | 'ADD' | 'DISTRIBUTE'>('all');
+  const [hospitalUnitFilter, setHospitalUnitFilter] = useState<'all' | HospitalUnit>('all');
   
+  // Inventory Filter States
   const [sortBy, setSortBy] = useState<SortByType>('brandName');
   const [scheduleFilter, setScheduleFilter] = useState<ScheduleFilterType>('all');
 
@@ -154,15 +159,40 @@ function App() {
     setTransactions(prev => [newTransaction, ...prev]);
   };
 
-  const filteredTransactions = useMemo(() => transactions
-    .filter(t => {
-      if (selectedDrugFilter === 'all') return true;
-      return t.drug.genericName === selectedDrugFilter;
-    })
-    .filter(t => {
-      const query = searchTerm.toLowerCase();
-      if (!query) return true;
-      return (
+  const handleDateRangeChange = (field: 'start' | 'end', value: string) => {
+    setDateRange(prev => ({ ...prev, [field]: value }));
+  };
+
+  const filteredTransactions = useMemo(() => {
+    let results = transactions;
+
+    // Drug filter
+    if (selectedDrugFilters.length > 0) {
+      results = results.filter(t => selectedDrugFilters.includes(t.drug.genericName));
+    }
+    
+    // Date range filter
+    if (dateRange.start) {
+        results = results.filter(t => t.timestamp.toISOString().split('T')[0] >= dateRange.start);
+    }
+    if (dateRange.end) {
+        results = results.filter(t => t.timestamp.toISOString().split('T')[0] <= dateRange.end);
+    }
+
+    // Transaction type filter
+    if (transactionTypeFilter !== 'all') {
+      results = results.filter(t => t.type === transactionTypeFilter);
+    }
+
+    // Hospital unit filter
+    if (hospitalUnitFilter !== 'all') {
+      results = results.filter(t => t.unit === hospitalUnitFilter);
+    }
+
+    // Search term filter
+    const query = searchTerm.toLowerCase();
+    if (query) {
+      results = results.filter(t =>
         t.drug.brandName.toLowerCase().includes(query) ||
         t.drug.genericName.toLowerCase().includes(query) ||
         t.drug.strength.toLowerCase().includes(query) ||
@@ -170,7 +200,10 @@ function App() {
         (t.unit && t.unit.toLowerCase().includes(query)) ||
         (t.invoiceNumber && t.invoiceNumber.toLowerCase().includes(query))
       );
-    }), [transactions, selectedDrugFilter, searchTerm]);
+    }
+
+    return results;
+  }, [transactions, selectedDrugFilters, dateRange, transactionTypeFilter, hospitalUnitFilter, searchTerm]);
 
   const displayedDrugs = useMemo(() => {
     return [...drugs]
@@ -244,8 +277,14 @@ function App() {
                   allDrugs={drugs}
                   searchTerm={searchTerm}
                   onSearchTermChange={setSearchTerm}
-                  selectedDrugFilter={selectedDrugFilter}
-                  onDrugFilterChange={setSelectedDrugFilter}
+                  selectedDrugFilters={selectedDrugFilters}
+                  onDrugFilterChange={setSelectedDrugFilters}
+                  dateRange={dateRange}
+                  onDateRangeChange={handleDateRangeChange}
+                  transactionTypeFilter={transactionTypeFilter}
+                  onTransactionTypeFilterChange={setTransactionTypeFilter}
+                  hospitalUnitFilter={hospitalUnitFilter}
+                  onHospitalUnitFilterChange={setHospitalUnitFilter}
                   totalTransactions={transactions.length}
                 />
             </div>
